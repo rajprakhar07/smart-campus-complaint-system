@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Smart Campus IMS — Login</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <style>
+    body {
+      background: linear-gradient(135deg, #1e1b4b 0%, #312e81 40%, #4c1d95 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .login-page { width: 100%; max-width: 480px; }
+
+    .login-card {
+      background: rgba(255,255,255,0.05);
+      backdrop-filter: blur(20px);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: var(--radius-xl);
+      padding: 40px 36px;
+      box-shadow: 0 32px 80px rgba(0,0,0,0.4);
+      animation: fadeInUp 0.5s ease;
+    }
+
+    .login-logo {
+      text-align: center;
+      margin-bottom: 32px;
+    }
+    .login-logo .logo-big {
+      width: 72px; height: 72px;
+      background: linear-gradient(135deg, #818cf8, #a78bfa);
+      border-radius: 20px;
+      display: inline-flex; align-items: center; justify-content: center;
+      font-size: 2.2rem;
+      margin-bottom: 16px;
+      box-shadow: 0 12px 32px rgba(129,140,248,0.4);
+    }
+    .login-logo h1 { color: white; font-size: 1.5rem; margin-bottom: 6px; }
+    .login-logo p { color: rgba(255,255,255,0.5); font-size: 0.85rem; }
+
+    .role-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-bottom: 28px;
+    }
+    .role-card {
+      background: rgba(255,255,255,0.07);
+      border: 2px solid rgba(255,255,255,0.1);
+      border-radius: var(--radius-md);
+      padding: 16px 12px;
+      text-align: center;
+      cursor: pointer;
+      transition: all var(--transition);
+      color: rgba(255,255,255,0.7);
+    }
+    .role-card:hover {
+      background: rgba(255,255,255,0.12);
+      border-color: rgba(129,140,248,0.5);
+      color: white;
+      transform: translateY(-3px);
+    }
+    .role-card.selected {
+      background: rgba(79,70,229,0.35);
+      border-color: #818cf8;
+      color: white;
+      box-shadow: 0 4px 16px rgba(79,70,229,0.3);
+    }
+    .role-card .role-icon { font-size: 2rem; margin-bottom: 8px; display: block; }
+    .role-card .role-name { font-size: 0.82rem; font-weight: 600; font-family: var(--font-display); }
+    .role-card .role-desc { font-size: 0.7rem; opacity: 0.6; margin-top: 2px; }
+
+    .login-form { display: none; }
+    .login-form.active { display: block; animation: fadeInUp 0.3s ease; }
+
+    .login-field {
+      margin-bottom: 16px;
+    }
+    .login-label { display: block; font-size: 0.82rem; font-weight: 600; color: rgba(255,255,255,0.7); margin-bottom: 6px; }
+    .login-input {
+      width: 100%;
+      padding: 11px 14px;
+      background: rgba(255,255,255,0.08);
+      border: 1.5px solid rgba(255,255,255,0.12);
+      border-radius: var(--radius-sm);
+      color: white;
+      font-size: 0.9rem;
+      font-family: var(--font-body);
+      transition: all var(--transition);
+      outline: none;
+    }
+    .login-input:focus { border-color: #818cf8; background: rgba(255,255,255,0.12); }
+    .login-input::placeholder { color: rgba(255,255,255,0.3); }
+
+    .login-submit {
+      width: 100%;
+      padding: 13px;
+      background: linear-gradient(135deg, #4f46e5, #7c3aed);
+      border: none;
+      border-radius: var(--radius-sm);
+      color: white;
+      font-family: var(--font-display);
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all var(--transition);
+      box-shadow: 0 4px 16px rgba(79,70,229,0.4);
+      margin-top: 8px;
+    }
+    .login-submit:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(79,70,229,0.5); }
+
+    .login-hint {
+      text-align: center;
+      font-size: 0.75rem;
+      color: rgba(255,255,255,0.35);
+      margin-top: 16px;
+    }
+
+    .divider-line {
+      display: flex; align-items: center; gap: 12px; margin: 20px 0;
+      color: rgba(255,255,255,0.2); font-size: 0.75rem;
+    }
+    .divider-line::before, .divider-line::after {
+      content: ''; flex: 1; height: 1px; background: rgba(255,255,255,0.1);
+    }
+
+    .demo-btns { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+    .demo-btn {
+      width: 100%;
+      padding: 10px;
+      border-radius: var(--radius-sm);
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all var(--transition);
+      border: 1px solid rgba(255,255,255,0.15);
+      color: rgba(255,255,255,0.7);
+      background: rgba(255,255,255,0.05);
+      font-family: var(--font-body);
+    }
+    .demo-btn:hover { background: rgba(255,255,255,0.1); color: white; }
+
+    .floating-bg {
+      position: fixed;
+      border-radius: 50%;
+      opacity: 0.06;
+      background: white;
+      pointer-events: none;
+    }
+    .fb1 { width: 400px; height: 400px; top: -100px; right: -100px; animation: float1 8s ease-in-out infinite; }
+    .fb2 { width: 250px; height: 250px; bottom: 50px; left: -80px; animation: float2 10s ease-in-out infinite; }
+    .fb3 { width: 150px; height: 150px; top: 40%; left: 20%; animation: float1 12s ease-in-out infinite reverse; }
+    @keyframes float1 { 0%,100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-30px) rotate(10deg); } }
+    @keyframes float2 { 0%,100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(20px) rotate(-8deg); } }
+  </style>
+</head>
+<body>
+  <div class="floating-bg fb1"></div>
+  <div class="floating-bg fb2"></div>
+  <div class="floating-bg fb3"></div>
+
+  <div class="login-page">
+    <div class="login-card">
+      <div class="login-logo">
+        <div class="logo-big">🏛️</div>
+        <h1>Smart Campus IMS</h1>
+        <p>Issue Management System — Select your role to continue</p>
+      </div>
+
+      <div class="role-grid" id="roleGrid">
+        <div class="role-card" onclick="selectRole('student')" data-role="student">
+          <span class="role-icon">🎓</span>
+          <div class="role-name">Student</div>
+          <div class="role-desc">Report &amp; track issues</div>
+        </div>
+        <div class="role-card" onclick="selectRole('team')" data-role="team">
+          <span class="role-icon">🔧</span>
+          <div class="role-name">Team</div>
+          <div class="role-desc">Resolve assigned issues</div>
+        </div>
+        <div class="role-card" onclick="selectRole('admin')" data-role="admin">
+          <span class="role-icon">👤</span>
+          <div class="role-name">Admin</div>
+          <div class="role-desc">Monitor &amp; manage all</div>
+        </div>
+      </div>
+
+      <!-- Student Form -->
+      <div class="login-form" id="studentForm">
+        <div class="login-field">
+          <label class="login-label">Full Name</label>
+          <input class="login-input" id="studentName" type="text" placeholder="Enter your full name" />
+        </div>
+        <div class="login-field">
+          <label class="login-label">Roll Number</label>
+          <input class="login-input" id="studentRoll" type="text" placeholder="e.g. CSE2021001" />
+        </div>
+        <button class="login-submit" onclick="loginAs('student')">Continue as Student →</button>
+      </div>
+
+      <!-- Team Form -->
+      <div class="login-form" id="teamForm">
+        <div class="login-field">
+          <label class="login-label">Select Your Team</label>
+          <select class="login-input" id="teamSelect">
+            <option value="cleaning">🧹 Cleaning Team</option>
+            <option value="water">💧 Water Team</option>
+            <option value="electrical">⚡ Electrical Team</option>
+            <option value="canteen">🍽️ Canteen Team</option>
+            <option value="maintenance">🔧 Maintenance Team</option>
+          </select>
+        </div>
+        <div class="login-field">
+          <label class="login-label">Team Member Name</label>
+          <input class="login-input" id="teamName" type="text" placeholder="Enter your name" />
+        </div>
+        <button class="login-submit" onclick="loginAs('team')">Continue as Team →</button>
+      </div>
+
+      <!-- Admin Form -->
+      <div class="login-form" id="adminForm">
+        <div class="login-field">
+          <label class="login-label">Admin Username</label>
+          <input class="login-input" id="adminUser" type="text" placeholder="admin" value="admin" />
+        </div>
+        <div class="login-field">
+          <label class="login-label">Password</label>
+          <input class="login-input" id="adminPass" type="password" placeholder="••••••••" value="admin123" />
+        </div>
+        <button class="login-submit" onclick="loginAs('admin')">Access Admin Panel →</button>
+      </div>
+
+      <div class="divider-line">Quick Demo Access</div>
+      <div class="demo-btns">
+        <button class="demo-btn" onclick="quickLogin('student', {name:'Demo Student', rollNumber:'DEMO001'})">🎓 Demo Student Login</button>
+        <button class="demo-btn" onclick="quickLogin('team', {teamId:'cleaning', teamName:'Demo Team Member'})">🔧 Demo Team Login</button>
+        <button class="demo-btn" onclick="quickLogin('admin', {})">👤 Demo Admin Login</button>
+      </div>
+
+      <p class="login-hint">⚠ This is a demo app — all data stored in browser localStorage</p>
+    </div>
+  </div>
+
+  <script src="js/app.js"></script>
+  <script>
+    // Check existing session
+    const session = APP.getSession();
+    if (session) {
+      redirectTo(session.role);
+    }
+
+    function selectRole(role) {
+      document.querySelectorAll('.role-card').forEach(c => c.classList.remove('selected'));
+      document.querySelector(`[data-role="${role}"]`).classList.add('selected');
+      document.querySelectorAll('.login-form').forEach(f => f.classList.remove('active'));
+      document.getElementById(role === 'student' ? 'studentForm' : role === 'team' ? 'teamForm' : 'adminForm').classList.add('active');
+    }
+
+    function loginAs(role) {
+      if (role === 'student') {
+        const name = document.getElementById('studentName').value.trim() || 'Student';
+        const rollNumber = document.getElementById('studentRoll').value.trim() || 'STU001';
+        APP.setSession({ role: 'student', name, rollNumber });
+        redirectTo('student');
+      } else if (role === 'team') {
+        const teamId = document.getElementById('teamSelect').value;
+        const teamName = document.getElementById('teamName').value.trim() || 'Team Member';
+        APP.setSession({ role: 'team', teamId, teamName });
+        redirectTo('team');
+      } else if (role === 'admin') {
+        APP.setSession({ role: 'admin', name: 'Administrator' });
+        redirectTo('admin');
+      }
+    }
+
+    function quickLogin(role, data) {
+      if (role === 'student') APP.setSession({ role: 'student', name: data.name, rollNumber: data.rollNumber });
+      else if (role === 'team') APP.setSession({ role: 'team', teamId: data.teamId, teamName: data.teamName });
+      else APP.setSession({ role: 'admin', name: 'Administrator' });
+      redirectTo(role);
+    }
+
+    function redirectTo(role) {
+      const pages = { student: 'student-dashboard.html', team: 'team-dashboard.html', admin: 'admin-dashboard.html' };
+      window.location.href = pages[role] || 'index.html';
+    }
+  </script>
+</body>
+</html>

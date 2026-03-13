@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Student Dashboard — Campus IMS</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+<div id="sidebar-overlay" onclick="document.getElementById('sidebar').classList.remove('open');this.style.display='none'"></div>
+
+<div class="app-layout">
+  <aside class="sidebar" id="sidebar"></aside>
+
+  <div class="main-content">
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="hamburger-btn" id="hamburger">☰</button>
+        <div>
+          <div class="topbar-title" id="topbar-title"></div>
+          <div class="topbar-subtitle" id="topbar-subtitle"></div>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <button class="btn btn-primary btn-sm" onclick="openModal('submitModal')">➕ Report Issue</button>
+        <button class="dark-toggle" id="dark-toggle" title="Toggle dark mode"></button>
+      </div>
+    </header>
+
+    <main class="page-content">
+      <!-- Banner -->
+      <div class="page-banner anim-fade-up">
+        <h1>Student Dashboard</h1>
+        <p>Report campus issues and track their resolution progress</p>
+        <div class="banner-emoji">🎓</div>
+      </div>
+
+      <!-- Stats -->
+      <div class="stats-grid stagger-children" id="stats-grid"></div>
+
+      <!-- Main grid -->
+      <div class="two-col" style="gap:24px;margin-bottom:24px">
+        <!-- Submit panel teaser -->
+        <div class="panel anim-fade-up" style="background:linear-gradient(135deg,#4f46e5,#7c3aed);color:white;border:none">
+          <div class="panel-body" style="padding:28px">
+            <div style="font-size:2.5rem;margin-bottom:12px">🚨</div>
+            <h3 style="margin-bottom:8px;color:white">Spotted an Issue?</h3>
+            <p style="opacity:0.8;font-size:0.88rem;margin-bottom:20px">Report any campus problem instantly — washrooms, WiFi, electricity, and more. Your report helps keep the campus running smoothly.</p>
+            <button class="btn" style="background:white;color:var(--primary);font-weight:700" onclick="openModal('submitModal')">
+              ➕ Submit Complaint
+            </button>
+          </div>
+        </div>
+        <!-- My stats -->
+        <div class="panel anim-fade-up">
+          <div class="panel-header">
+            <div class="section-title"><div class="section-title-dot"></div>My Activity</div>
+          </div>
+          <div class="panel-body" id="my-activity"></div>
+        </div>
+      </div>
+
+      <!-- Filters + complaints list -->
+      <div class="section-header">
+        <div class="section-title"><div class="section-title-dot"></div>All Campus Complaints</div>
+        <div id="complaint-count" style="font-size:0.82rem;color:var(--text-muted)"></div>
+      </div>
+      <div class="filter-bar">
+        <div class="search-input-wrap">
+          <span class="search-icon">🔍</span>
+          <input class="search-input" id="searchInput" placeholder="Search complaints..." oninput="renderAll()" />
+        </div>
+        <select class="filter-select" id="filterCategory" onchange="renderAll()">
+          <option value="">All Categories</option>
+          <!-- populated by JS -->
+        </select>
+        <select class="filter-select" id="filterStatus" onchange="renderAll()">
+          <option value="">All Statuses</option>
+          <option value="pending">Pending</option>
+          <option value="under-review">Under Review</option>
+          <option value="in-progress">In Progress</option>
+          <option value="resolved">Resolved</option>
+          <option value="escalated">Escalated ⚠</option>
+        </select>
+        <select class="filter-select" id="filterPriority" onchange="renderAll()">
+          <option value="">All Priorities</option>
+          <option value="low">🟢 Low</option>
+          <option value="medium">🟡 Medium</option>
+          <option value="high">🔴 High</option>
+          <option value="critical">🟣 Critical</option>
+        </select>
+        <select class="filter-select" id="sortBy" onchange="renderAll()">
+          <option value="newest">Newest First</option>
+          <option value="oldest">Oldest First</option>
+          <option value="upvotes">Most Upvoted</option>
+        </select>
+      </div>
+      <div class="complaints-grid" id="complaints-list"></div>
+    </main>
+  </div>
+</div>
+
+<!-- Submit Complaint Modal -->
+<div class="modal-overlay" id="submitModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>🚨 Report Campus Issue</h3>
+      <button class="close-btn" onclick="closeModal('submitModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label required">Your Name</label>
+          <input class="form-control" id="f-name" placeholder="Full name" />
+        </div>
+        <div class="form-group">
+          <label class="form-label required">Roll Number</label>
+          <input class="form-control" id="f-roll" placeholder="e.g. CSE2021001" />
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label required">Location</label>
+        <select class="form-control" id="f-location">
+          <option value="">Select location…</option>
+          ${APP.LOCATIONS.map(l => `<option value="${l}">${l}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Category <span style="font-size:0.75rem;color:var(--text-muted)">(auto-detected)</span></label>
+          <select class="form-control" id="f-category">
+            ${Object.entries(APP.CATEGORIES).map(([k,v]) => `<option value="${k}">${v.icon} ${v.label}</option>`).join('')}
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Priority <span style="font-size:0.75rem;color:var(--text-muted)">(auto-detected)</span></label>
+          <select class="form-control" id="f-priority">
+            ${Object.entries(APP.PRIORITIES).map(([k,v]) => `<option value="${k}">${v.icon} ${v.label}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label required">Description</label>
+        <textarea class="form-control" id="f-desc" placeholder="Describe the issue in detail…" rows="3" oninput="autoDetect(this.value)"></textarea>
+        <div id="auto-detect-hint" style="font-size:0.75rem;color:var(--primary);margin-top:4px;"></div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Upload Photo</label>
+        <div class="upload-area" id="upload-area" onclick="document.getElementById('f-image').click()">
+          <div class="upload-icon">📷</div>
+          <div class="upload-text">Click to upload or drag & drop</div>
+          <div class="upload-subtext">PNG, JPG, WebP — Max 5MB</div>
+          <img class="upload-preview" id="img-preview" style="display:none" />
+        </div>
+        <input type="file" id="f-image" accept="image/*" style="display:none" onchange="previewImage(this)" />
+      </div>
+      <div class="form-group">
+        <label class="form-check">
+          <input type="checkbox" id="f-anon" />
+          <span class="form-check-label">Submit anonymously (your name/roll won't be shown)</span>
+        </label>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('submitModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="submitComplaint()">🚀 Submit Complaint</button>
+    </div>
+  </div>
+</div>
+
+<!-- Leaderboard Modal -->
+<div class="modal-overlay" id="leaderboardModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>🏆 Top Contributors Leaderboard</h3>
+      <button class="close-btn" onclick="closeModal('leaderboardModal')">✕</button>
+    </div>
+    <div class="modal-body" id="leaderboard-content"></div>
+  </div>
+</div>
+
+<script src="js/app.js"></script>
+<script src="js/ui.js"></script>
+<script>
+const session = APP.getSession();
+if (!session || session.role !== 'student') { window.location.href = 'login.html'; }
+
+// Replace placeholder with actual data for filter select (needed since script is inline)
+document.getElementById('filterCategory').innerHTML = `<option value="">All Categories</option>` +
+  Object.entries(APP.CATEGORIES).map(([k,v]) => `<option value="${k}">${v.icon} ${v.label}</option>`).join('');
+
+buildSidebar('dashboard');
+buildTopbar('Student Dashboard', `Welcome, ${session.name || 'Student'}! 👋`);
+
+// Pre-fill form from session
+document.getElementById('f-name').value = session.name || '';
+document.getElementById('f-roll').value = session.rollNumber || '';
+
+function renderAll() {
+  APP.checkEscalations();
+  const complaints = APP.getComplaints();
+  const stats = APP.getStats();
+  renderStats('stats-grid', stats);
+  renderMyActivity(complaints);
+
+  const search = document.getElementById('searchInput').value.toLowerCase();
+  const cat = document.getElementById('filterCategory').value;
+  const status = document.getElementById('filterStatus').value;
+  const priority = document.getElementById('filterPriority').value;
+  const sort = document.getElementById('sortBy').value;
+
+  let filtered = complaints.filter(c => {
+    if (cat && c.category !== cat) return false;
+    if (status && c.status !== status) return false;
+    if (priority && c.priority !== priority) return false;
+    if (search && !JSON.stringify(c).toLowerCase().includes(search)) return false;
+    return true;
+  });
+
+  if (sort === 'oldest') filtered.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+  else if (sort === 'upvotes') filtered.sort((a, b) => b.upvotes - a.upvotes);
+
+  document.getElementById('complaint-count').textContent = `${filtered.length} complaint${filtered.length !== 1 ? 's' : ''}`;
+
+  const list = document.getElementById('complaints-list');
+  if (filtered.length === 0) {
+    list.innerHTML = `<div class="empty-state"><div class="empty-state-icon">📭</div><h3>No complaints found</h3><p>Try adjusting filters or submit a new issue</p></div>`;
+    return;
+  }
+  list.innerHTML = filtered.map(c => renderComplaintCard(c, { showUpvote: true })).join('');
+}
+
+function renderMyActivity(complaints) {
+  const name = session.name;
+  const mine = complaints.filter(c => c.name === name);
+  const el = document.getElementById('my-activity');
+  el.innerHTML = `
+    <div class="stats-grid" style="grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+      <div style="background:var(--bg);border-radius:var(--radius-md);padding:14px;text-align:center;border:1px solid var(--border)">
+        <div style="font-size:1.8rem;font-weight:800;color:var(--primary);font-family:var(--font-display)">${mine.length}</div>
+        <div style="font-size:0.78rem;color:var(--text-muted)">My Reports</div>
+      </div>
+      <div style="background:var(--bg);border-radius:var(--radius-md);padding:14px;text-align:center;border:1px solid var(--border)">
+        <div style="font-size:1.8rem;font-weight:800;color:var(--secondary);font-family:var(--font-display)">${mine.filter(c=>c.status==='resolved').length}</div>
+        <div style="font-size:0.78rem;color:var(--text-muted)">Resolved</div>
+      </div>
+    </div>
+    ${mine.slice(0, 3).map(c => `
+      <div style="padding:10px 12px;background:var(--bg);border-radius:var(--radius-sm);margin-bottom:8px;border:1px solid var(--border)">
+        <div style="font-size:0.82rem;font-weight:600;margin-bottom:3px">${APP.CATEGORIES[c.category]?.icon} ${escapeHtml(c.description.substring(0,50))}…</div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <span class="status-badge status-${c.status}">${APP.STATUSES[c.status]?.label}</span>
+          <span style="font-size:0.72rem;color:var(--text-muted)">${timeAgo(c.timestamp)}</span>
+        </div>
+      </div>
+    `).join('') || '<p class="text-sm text-muted">No complaints yet — be the first to report!</p>'}
+    <button class="btn btn-ghost btn-sm w-full" onclick="openModal('leaderboardModal');renderLeaderboard('leaderboard-content', APP.getStats().leaderboard)" style="margin-top:8px">🏆 View Leaderboard</button>
+  `;
+}
+
+function autoDetect(text) {
+  const result = APP.autoDetectCategory(text);
+  const hint = document.getElementById('auto-detect-hint');
+  if (text.length > 5) {
+    const cat = APP.CATEGORIES[result.category];
+    document.getElementById('f-category').value = result.category;
+    document.getElementById('f-priority').value = result.priority;
+    hint.textContent = `✨ Auto-detected: ${cat.icon} ${cat.label} • ${APP.PRIORITIES[result.priority].icon} ${result.priority} priority`;
+  } else {
+    hint.textContent = '';
+  }
+}
+
+function previewImage(input) {
+  if (input.files && input.files[0]) {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const img = document.getElementById('img-preview');
+      img.src = e.target.result;
+      img.style.display = 'block';
+    };
+    reader.readAsDataURL(input.files[0]);
+  }
+}
+
+function submitComplaint() {
+  const name = document.getElementById('f-name').value.trim();
+  const roll = document.getElementById('f-roll').value.trim();
+  const location = document.getElementById('f-location').value;
+  const category = document.getElementById('f-category').value;
+  const priority = document.getElementById('f-priority').value;
+  const desc = document.getElementById('f-desc').value.trim();
+  const anon = document.getElementById('f-anon').checked;
+  const imgPreview = document.getElementById('img-preview');
+
+  if (!desc || !location) { showToast('Please fill in description and location', 'error'); return; }
+
+  APP.addComplaint({
+    name, rollNumber: roll, location, category, description: desc, priority,
+    image: imgPreview.style.display !== 'none' ? imgPreview.src : null,
+    anonymous: anon
+  });
+
+  showToast('✅ Complaint submitted successfully!', 'success');
+  closeModal('submitModal');
+  document.getElementById('f-desc').value = '';
+  document.getElementById('img-preview').style.display = 'none';
+  document.getElementById('auto-detect-hint').textContent = '';
+  renderAll();
+}
+
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+// Handle upvote (student specific)
+function handleUpvote(id, btn) {
+  const userId = getUserId();
+  APP.upvoteComplaint(id, userId);
+  const c = APP.getComplaints().find(x => x.id === id);
+  if (c) {
+    btn.querySelector('.upvote-count').textContent = c.upvotes;
+    btn.classList.toggle('voted', (c.upvotedBy || []).includes(userId));
+  }
+}
+
+// Close modal on outside click
+document.querySelectorAll('.modal-overlay').forEach(m => {
+  m.addEventListener('click', e => { if (e.target === m) m.classList.remove('open'); });
+});
+
+// Real-time updates via storage events
+window.addEventListener('complaintsUpdated', renderAll);
+window.addEventListener('storage', e => { if (e.key === APP.STORAGE_KEY) renderAll(); });
+
+// Initial render
+renderAll();
+</script>
+</body>
+</html>

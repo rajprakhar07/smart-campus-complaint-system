@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Dashboard — Campus IMS</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <style>
+    .analytics-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px; }
+    @media(max-width:768px) { .analytics-grid { grid-template-columns: 1fr; } }
+    .tab-bar { display:flex;gap:4px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-md);padding:4px;margin-bottom:20px;flex-wrap:wrap }
+    .tab-btn { padding:8px 16px;border-radius:var(--radius-sm);border:none;background:transparent;color:var(--text-secondary);font-family:var(--font-body);font-size:0.82rem;font-weight:600;cursor:pointer;transition:all var(--transition);white-space:nowrap }
+    .tab-btn:hover { background:var(--bg);color:var(--text-primary) }
+    .tab-btn.active { background:var(--primary);color:white }
+    .team-performance-grid { display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px }
+    .perf-card { background:var(--bg-card);border-radius:var(--radius-lg);padding:20px;border:1px solid var(--border);text-align:center;transition:all var(--transition) }
+    .perf-card:hover { transform:translateY(-3px);box-shadow:var(--shadow-md) }
+    .perf-card .perf-icon { font-size:2rem;margin-bottom:10px }
+    .perf-num { font-family:var(--font-display);font-size:2rem;font-weight:800;margin-bottom:4px }
+  </style>
+</head>
+<body>
+<div id="sidebar-overlay"></div>
+
+<div class="app-layout">
+  <aside class="sidebar" id="sidebar"></aside>
+
+  <div class="main-content">
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="hamburger-btn" id="hamburger">☰</button>
+        <div>
+          <div class="topbar-title" id="topbar-title"></div>
+          <div class="topbar-subtitle" id="topbar-subtitle"></div>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <button class="btn btn-danger btn-sm" onclick="clearAllData()">🗑️ Reset Data</button>
+        <button class="dark-toggle" id="dark-toggle"></button>
+      </div>
+    </header>
+
+    <main class="page-content">
+      <div class="page-banner anim-fade-up">
+        <h1>Admin Control Panel</h1>
+        <p>Full visibility and control over campus issue management</p>
+        <div class="banner-emoji">👤</div>
+      </div>
+
+      <!-- Stats -->
+      <div class="stats-grid stagger-children" id="stats-grid"></div>
+
+      <!-- Extended stats row -->
+      <div class="stats-grid" id="ext-stats" style="margin-bottom:28px"></div>
+
+      <!-- Tabs -->
+      <div class="tab-bar">
+        <button class="tab-btn active" data-tab="all" onclick="switchTab('all')">📋 All Complaints</button>
+        <button class="tab-btn" data-tab="escalated" onclick="switchTab('escalated')">⚠️ Escalated</button>
+        <button class="tab-btn" data-tab="analytics" onclick="switchTab('analytics')">📊 Analytics</button>
+        <button class="tab-btn" data-tab="teams" onclick="switchTab('teams')">👥 Team Performance</button>
+        <button class="tab-btn" data-tab="leaderboard" onclick="switchTab('leaderboard')">🏆 Leaderboard</button>
+      </div>
+
+      <!-- All complaints tab -->
+      <div id="tab-all">
+        <div class="filter-bar">
+          <div class="search-input-wrap">
+            <span class="search-icon">🔍</span>
+            <input class="search-input" id="adminSearch" placeholder="Search all complaints…" oninput="renderAll()" />
+          </div>
+          <select class="filter-select" id="adminFilterCat" onchange="renderAll()">
+            <option value="">All Categories</option>
+          </select>
+          <select class="filter-select" id="adminFilterStatus" onchange="renderAll()">
+            <option value="">All Statuses</option>
+            <option value="pending">Pending</option>
+            <option value="under-review">Under Review</option>
+            <option value="in-progress">In Progress</option>
+            <option value="resolved">Resolved</option>
+            <option value="escalated">Escalated ⚠</option>
+          </select>
+          <select class="filter-select" id="adminFilterTeam" onchange="renderAll()">
+            <option value="">All Teams</option>
+          </select>
+          <select class="filter-select" id="adminSort" onchange="renderAll()">
+            <option value="newest">Newest First</option>
+            <option value="oldest">Oldest First</option>
+            <option value="upvotes">Most Upvoted</option>
+            <option value="priority">By Priority</option>
+          </select>
+        </div>
+        <div id="admin-count" style="font-size:0.82rem;color:var(--text-muted);margin-bottom:12px"></div>
+        <div class="complaints-grid" id="admin-complaints-list"></div>
+      </div>
+
+      <!-- Escalated tab -->
+      <div id="tab-escalated" class="hidden">
+        <div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:var(--radius-md);padding:16px;margin-bottom:20px;display:flex;gap:12px;align-items:center">
+          <span style="font-size:1.5rem">⚠️</span>
+          <div>
+            <div style="font-weight:700;color:var(--danger)">Escalated Issues Require Immediate Attention</div>
+            <div style="font-size:0.82rem;color:var(--text-secondary)">These complaints have been pending for over 48 hours</div>
+          </div>
+        </div>
+        <div class="complaints-grid" id="escalated-list"></div>
+      </div>
+
+      <!-- Analytics tab -->
+      <div id="tab-analytics" class="hidden">
+        <div class="analytics-grid">
+          <div class="panel">
+            <div class="panel-header"><div class="section-title"><div class="section-title-dot"></div>Complaints by Category</div></div>
+            <div class="panel-body" id="cat-chart"></div>
+          </div>
+          <div class="panel">
+            <div class="panel-header"><div class="section-title"><div class="section-title-dot"></div>Daily Complaints (Last 7 Days)</div></div>
+            <div class="panel-body" id="daily-chart"></div>
+          </div>
+          <div class="panel" style="grid-column: 1 / -1">
+            <div class="panel-header"><div class="section-title"><div class="section-title-dot"></div>🔥 Problem Areas Heatmap</div></div>
+            <div class="panel-body" id="heatmap"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Teams tab -->
+      <div id="tab-teams" class="hidden">
+        <div class="team-performance-grid" id="team-performance"></div>
+      </div>
+
+      <!-- Leaderboard tab -->
+      <div id="tab-leaderboard" class="hidden">
+        <div class="two-col">
+          <div class="panel">
+            <div class="panel-header"><div class="section-title"><div class="section-title-dot"></div>🏆 Top Reporters</div></div>
+            <div class="panel-body" id="admin-leaderboard"></div>
+          </div>
+          <div class="panel">
+            <div class="panel-header"><div class="section-title"><div class="section-title-dot"></div>🔥 Most Upvoted Issues</div></div>
+            <div class="panel-body" id="top-upvoted"></div>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<script src="js/app.js"></script>
+<script src="js/ui.js"></script>
+<script>
+const session = APP.getSession();
+if (!session || session.role !== 'admin') { window.location.href = 'login.html'; }
+
+buildSidebar('dashboard');
+buildTopbar('Admin Dashboard', 'Full system overview & management');
+
+// Populate filter selects
+const catSel = document.getElementById('adminFilterCat');
+catSel.innerHTML = '<option value="">All Categories</option>' + Object.entries(APP.CATEGORIES).map(([k,v]) => `<option value="${k}">${v.icon} ${v.label}</option>`).join('');
+const teamSel = document.getElementById('adminFilterTeam');
+teamSel.innerHTML = '<option value="">All Teams</option>' + Object.entries(APP.TEAMS).map(([k,v]) => `<option value="${k}">${v.label}</option>`).join('');
+
+let currentTab = 'all';
+
+function switchTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+  ['all','escalated','analytics','teams','leaderboard'].forEach(t => {
+    document.getElementById('tab-' + t).classList.toggle('hidden', t !== tab);
+  });
+  if (tab === 'analytics') renderAnalytics();
+  if (tab === 'teams') renderTeams();
+  if (tab === 'leaderboard') renderLeaderboardTab();
+}
+
+function renderAll() {
+  APP.checkEscalations();
+  const all = APP.getComplaints();
+  const stats = APP.getStats();
+
+  // Main stats
+  renderStats('stats-grid', stats);
+
+  // Extended stats
+  document.getElementById('ext-stats').innerHTML = `
+    <div class="stat-card" style="--card-color:var(--info)">
+      <div class="stat-card-icon">⚙️</div>
+      <div class="stat-value" data-target="${stats.inProgress}">0</div>
+      <div class="stat-label">In Progress</div>
+    </div>
+    <div class="stat-card" style="--card-color:var(--purple)">
+      <div class="stat-card-icon">👍</div>
+      <div class="stat-value" data-target="${all.reduce((a,c)=>a+c.upvotes,0)}">0</div>
+      <div class="stat-label">Total Upvotes</div>
+    </div>
+    <div class="stat-card" style="--card-color:var(--accent)">
+      <div class="stat-card-icon">📍</div>
+      <div class="stat-value" style="font-size:0.9rem;padding-top:4px">${getMostProblematic(stats.byLocation)}</div>
+      <div class="stat-label">Most Problematic Area</div>
+    </div>
+    <div class="stat-card" style="--card-color:var(--secondary)">
+      <div class="stat-card-icon">📈</div>
+      <div class="stat-value" data-target="${stats.total > 0 ? Math.round(stats.resolved/stats.total*100) : 0}">0</div>
+      <div class="stat-label">Resolution Rate %</div>
+    </div>
+  `;
+  document.querySelectorAll('#ext-stats .stat-value[data-target]').forEach(el => {
+    animateCounter(el, parseInt(el.dataset.target));
+  });
+
+  // Complaints list with admin controls
+  const search = document.getElementById('adminSearch').value.toLowerCase();
+  const cat = document.getElementById('adminFilterCat').value;
+  const status = document.getElementById('adminFilterStatus').value;
+  const team = document.getElementById('adminFilterTeam').value;
+  const sort = document.getElementById('adminSort').value;
+
+  const PRIORITY_ORDER = { critical: 0, high: 1, medium: 2, low: 3 };
+
+  let filtered = all.filter(c => {
+    if (cat && c.category !== cat) return false;
+    if (status && c.status !== status) return false;
+    if (team && c.assignedTeam !== team) return false;
+    if (search && !JSON.stringify(c).toLowerCase().includes(search)) return false;
+    return true;
+  });
+
+  if (sort === 'oldest') filtered.sort((a,b) => new Date(a.timestamp)-new Date(b.timestamp));
+  else if (sort === 'upvotes') filtered.sort((a,b) => b.upvotes-a.upvotes);
+  else if (sort === 'priority') filtered.sort((a,b) => (PRIORITY_ORDER[a.priority]||4)-(PRIORITY_ORDER[b.priority]||4));
+
+  document.getElementById('admin-count').textContent = `Showing ${filtered.length} of ${all.length} complaints`;
+
+  const list = document.getElementById('admin-complaints-list');
+  list.innerHTML = filtered.length === 0
+    ? `<div class="empty-state"><div class="empty-state-icon">📭</div><h3>No results</h3></div>`
+    : filtered.map(c => renderComplaintCard(c, { showAssign: true, showDelete: true, showStatusChange: true, showUpvote: false })).join('');
+
+  // Escalated
+  const escalated = all.filter(c => c.status === 'escalated');
+  document.getElementById('escalated-list').innerHTML = escalated.length === 0
+    ? `<div class="empty-state"><div class="empty-state-icon">🎉</div><h3>No escalated issues!</h3><p>All complaints are being handled in time</p></div>`
+    : escalated.map(c => renderComplaintCard(c, { showAssign: true, showDelete: true, showStatusChange: true, showUpvote: false })).join('');
+}
+
+function getMostProblematic(byLocation) {
+  const entries = Object.entries(byLocation);
+  if (!entries.length) return 'N/A';
+  return entries.sort((a,b) => b[1]-a[1])[0][0].split(' - ')[0] || 'N/A';
+}
+
+function renderAnalytics() {
+  const stats = APP.getStats();
+  renderCategoryChart('cat-chart', stats.byCategory);
+  renderDailyChart('daily-chart', stats.byDay);
+  renderLocationHeatmap('heatmap', stats.byLocation);
+}
+
+function renderTeams() {
+  const all = APP.getComplaints();
+  document.getElementById('team-performance').innerHTML = Object.entries(APP.TEAMS).map(([k, team]) => {
+    const teamComplaints = all.filter(c => c.assignedTeam === k);
+    const resolved = teamComplaints.filter(c => c.status === 'resolved').length;
+    const pending = teamComplaints.filter(c => c.status === 'pending' || c.status === 'under-review').length;
+    const rate = teamComplaints.length ? Math.round(resolved/teamComplaints.length*100) : 0;
+    const icons = { cleaning: '🧹', water: '💧', electrical: '⚡', canteen: '🍽️', maintenance: '🔧' };
+    return `
+      <div class="perf-card">
+        <div class="perf-icon">${icons[k] || '👥'}</div>
+        <div style="font-weight:700;margin-bottom:12px;font-family:var(--font-display)">${team.label}</div>
+        <div class="perf-num" style="color:${team.color}">${teamComplaints.length}</div>
+        <div style="font-size:0.78rem;color:var(--text-muted);margin-bottom:12px">Total Assigned</div>
+        <div style="display:flex;justify-content:center;gap:16px;font-size:0.8rem">
+          <span style="color:var(--secondary)">✅ ${resolved}</span>
+          <span style="color:var(--warning)">⏳ ${pending}</span>
+        </div>
+        <div style="margin-top:12px">
+          <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:4px">Resolution Rate</div>
+          <div style="background:var(--bg);border-radius:99px;height:8px;overflow:hidden">
+            <div style="height:100%;width:${rate}%;background:${team.color};border-radius:99px;transition:width 1s ease"></div>
+          </div>
+          <div style="font-size:0.8rem;font-weight:700;color:${team.color};margin-top:4px">${rate}%</div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderLeaderboardTab() {
+  const stats = APP.getStats();
+  renderLeaderboard('admin-leaderboard', stats.leaderboard);
+
+  const topUpvoted = APP.getComplaints().sort((a,b) => b.upvotes - a.upvotes).slice(0, 5);
+  const cat = APP.CATEGORIES;
+  document.getElementById('top-upvoted').innerHTML = topUpvoted.map((c, i) => `
+    <div class="leaderboard-item">
+      <div class="rank-badge rank-${i < 3 ? i+1 : 'other'}">${i+1}</div>
+      <div style="flex:1">
+        <div style="font-weight:600;font-size:0.88rem">${cat[c.category]?.icon} ${escapeHtml(c.description.substring(0,50))}…</div>
+        <div style="font-size:0.73rem;color:var(--text-muted)">${c.location}</div>
+      </div>
+      <div style="font-weight:700;color:var(--primary);font-size:0.9rem">👍 ${c.upvotes}</div>
+    </div>
+  `).join('') || '<p class="text-sm text-muted">No data yet</p>';
+}
+
+// Admin-specific handlers
+function handleAssign(id, team) {
+  APP.assignTeam(id, team);
+  APP.updateComplaintStatus(id, 'under-review', 'Assigned to ' + APP.TEAMS[team]?.label);
+  showToast('✅ Team assigned', 'success');
+}
+
+function handleStatusChange(id, status) {
+  APP.updateComplaintStatus(id, status);
+  showToast('Status updated', 'info');
+  renderAll();
+}
+
+function handleDelete(id) {
+  if (confirm('Delete this complaint? This cannot be undone.')) {
+    APP.deleteComplaint(id);
+    showToast('🗑️ Complaint deleted', 'warning');
+    renderAll();
+  }
+}
+
+function handleUpvote() {} // Not used on admin
+
+function clearAllData() {
+  if (confirm('⚠️ This will delete ALL complaints. Are you sure?')) {
+    localStorage.removeItem(APP.STORAGE_KEY);
+    APP.seedSampleData();
+    showToast('Data reset to sample data', 'info');
+    renderAll();
+  }
+}
+
+document.querySelectorAll('.modal-overlay').forEach(m => {
+  m.addEventListener('click', e => { if (e.target === m) m.classList.remove('open'); });
+});
+
+window.addEventListener('complaintsUpdated', renderAll);
+window.addEventListener('storage', e => { if (e.key === APP.STORAGE_KEY) renderAll(); });
+
+renderAll();
+</script>
+</body>
+</html>

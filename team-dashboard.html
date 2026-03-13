@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Team Dashboard — Campus IMS</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+<div id="sidebar-overlay"></div>
+
+<div class="app-layout">
+  <aside class="sidebar" id="sidebar"></aside>
+
+  <div class="main-content">
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="hamburger-btn" id="hamburger">☰</button>
+        <div>
+          <div class="topbar-title" id="topbar-title"></div>
+          <div class="topbar-subtitle" id="topbar-subtitle"></div>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <button class="dark-toggle" id="dark-toggle"></button>
+      </div>
+    </header>
+
+    <main class="page-content">
+      <div class="page-banner anim-fade-up" id="team-banner">
+        <h1 id="team-banner-title">Team Dashboard</h1>
+        <p id="team-banner-desc">Manage and resolve assigned campus issues</p>
+        <div class="banner-emoji">🔧</div>
+      </div>
+
+      <div class="stats-grid stagger-children" id="stats-grid"></div>
+
+      <!-- Tabs -->
+      <div style="display:flex;gap:4px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-md);padding:4px;margin-bottom:20px;width:fit-content">
+        <button class="tab-btn active" data-tab="assigned" onclick="switchTab('assigned')">📌 Assigned</button>
+        <button class="tab-btn" data-tab="in-progress" onclick="switchTab('in-progress')">⚙️ In Progress</button>
+        <button class="tab-btn" data-tab="resolved" onclick="switchTab('resolved')">✅ Resolved</button>
+        <button class="tab-btn" data-tab="all" onclick="switchTab('all')">📋 All</button>
+      </div>
+
+      <div class="complaints-grid" id="team-complaints-list"></div>
+    </main>
+  </div>
+</div>
+
+<!-- Update Status Modal -->
+<div class="modal-overlay" id="updateModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>⚙️ Update Issue Status</h3>
+      <button class="close-btn" onclick="closeModal('updateModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="update-complaint-preview" style="background:var(--bg);border-radius:var(--radius-md);padding:16px;margin-bottom:20px;border:1px solid var(--border)"></div>
+      <div class="form-group">
+        <label class="form-label">Update Status</label>
+        <select class="form-control" id="u-status">
+          <option value="pending">⏳ Pending</option>
+          <option value="under-review">🔍 Under Review</option>
+          <option value="in-progress">⚙️ In Progress</option>
+          <option value="resolved">✅ Resolved</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Resolution Notes</label>
+        <textarea class="form-control" id="u-notes" placeholder="Add notes about the resolution or current status…" rows="3"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Upload Fix Photo (optional)</label>
+        <div class="upload-area" onclick="document.getElementById('u-image').click()">
+          <div class="upload-icon">📷</div>
+          <div class="upload-text">Click to attach fix photo</div>
+        </div>
+        <input type="file" id="u-image" accept="image/*" style="display:none" />
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('updateModal')">Cancel</button>
+      <button class="btn btn-success" onclick="saveUpdate()">💾 Save Update</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/app.js"></script>
+<script src="js/ui.js"></script>
+<script>
+const session = APP.getSession();
+if (!session || session.role !== 'team') { window.location.href = 'login.html'; }
+
+const teamInfo = APP.TEAMS[session.teamId] || { label: 'Team', categories: [], color: '#4f46e5' };
+
+buildSidebar('dashboard');
+buildTopbar(teamInfo.label, `Welcome, ${session.teamName}! 👋`);
+
+document.getElementById('team-banner-title').textContent = teamInfo.label;
+document.getElementById('team-banner-desc').textContent = `Categories: ${teamInfo.categories.map(c => APP.CATEGORIES[c]?.label).join(', ')}`;
+
+let currentComplaintId = null;
+let currentTab = 'assigned';
+
+function switchTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+  renderAll();
+}
+
+function renderAll() {
+  APP.checkEscalations();
+  const all = APP.getComplaints();
+  const mine = all.filter(c => c.assignedTeam === session.teamId);
+
+  const assigned = mine.filter(c => c.status === 'pending' || c.status === 'under-review' || c.status === 'escalated');
+  const inProg = mine.filter(c => c.status === 'in-progress');
+  const resolved = mine.filter(c => c.status === 'resolved');
+
+  const stats = {
+    total: mine.length,
+    resolved: resolved.length,
+    pending: assigned.length,
+    escalated: mine.filter(c => c.status === 'escalated').length
+  };
+  renderStats('stats-grid', stats);
+
+  let show = currentTab === 'assigned' ? assigned
+    : currentTab === 'in-progress' ? inProg
+    : currentTab === 'resolved' ? resolved
+    : mine;
+
+  const list = document.getElementById('team-complaints-list');
+  if (show.length === 0) {
+    list.innerHTML = `<div class="empty-state"><div class="empty-state-icon">🎉</div><h3>No issues here</h3><p>All clear in this category!</p></div>`;
+    return;
+  }
+
+  list.innerHTML = show.map(c => renderTeamCard(c)).join('');
+}
+
+function renderTeamCard(c) {
+  const cat = APP.CATEGORIES[c.category] || APP.CATEGORIES.other;
+  const pri = APP.PRIORITIES[c.priority] || APP.PRIORITIES.low;
+  const isEscalated = c.status === 'escalated';
+
+  return `
+    <div class="complaint-card ${isEscalated ? 'escalated' : ''} anim-fade-up" data-id="${c.id}">
+      ${c.image ? `<img class="card-image" src="${c.image}" alt="Issue photo" />` : ''}
+      <div class="card-header">
+        <div class="card-category">
+          <span class="cat-badge" style="color:${cat.color};border-color:${cat.color}20;background:${cat.color}12">${cat.icon} ${cat.label}</span>
+          <span class="priority-badge priority-${c.priority}">${pri.icon} ${pri.label}</span>
+        </div>
+        <span class="status-badge status-${c.status}">${APP.STATUSES[c.status]?.label || c.status}</span>
+      </div>
+      <div class="card-title">${escapeHtml(c.description)}</div>
+      <div style="font-size:0.8rem;color:var(--text-muted);margin:6px 0 12px;display:flex;gap:12px;flex-wrap:wrap">
+        <span>📍 ${escapeHtml(c.location)}</span>
+        <span>👤 ${escapeHtml(c.name)}</span>
+        <span>🆔 ${c.id}</span>
+        <span>⏰ ${timeAgo(c.timestamp)}</span>
+      </div>
+      ${c.resolutionNotes ? `<div style="background:var(--bg);border-radius:var(--radius-sm);padding:10px;font-size:0.82rem;color:var(--text-secondary);border:1px solid var(--border);margin-bottom:12px">📝 ${escapeHtml(c.resolutionNotes)}</div>` : ''}
+      <div class="card-footer">
+        <div style="font-size:0.75rem;color:var(--text-muted)">👍 ${c.upvotes} upvotes</div>
+        <div class="flex gap-2">
+          ${c.status !== 'resolved' ? `<button class="btn btn-primary btn-sm" onclick="openUpdate('${c.id}')">⚙️ Update Status</button>` : `<span class="status-badge status-resolved">✅ Resolved</span>`}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function openUpdate(id) {
+  currentComplaintId = id;
+  const c = APP.getComplaints().find(x => x.id === id);
+  if (!c) return;
+  document.getElementById('u-status').value = c.status === 'escalated' ? 'in-progress' : c.status;
+  document.getElementById('u-notes').value = c.resolutionNotes || '';
+  const cat = APP.CATEGORIES[c.category] || APP.CATEGORIES.other;
+  document.getElementById('update-complaint-preview').innerHTML = `
+    <div class="flex items-center gap-2 mb-4">
+      <span class="cat-badge" style="color:${cat.color};border-color:${cat.color}20;background:${cat.color}12">${cat.icon} ${cat.label}</span>
+      <span class="status-badge status-${c.status}">${APP.STATUSES[c.status]?.label}</span>
+    </div>
+    <div style="font-weight:600;margin-bottom:4px">${escapeHtml(c.description.substring(0, 80))}</div>
+    <div style="font-size:0.78rem;color:var(--text-muted)">📍 ${escapeHtml(c.location)} • ${timeAgo(c.timestamp)}</div>
+  `;
+  openModal('updateModal');
+}
+
+function saveUpdate() {
+  const status = document.getElementById('u-status').value;
+  const notes = document.getElementById('u-notes').value;
+  APP.updateComplaintStatus(currentComplaintId, status, notes);
+  showToast('✅ Status updated successfully', 'success');
+  closeModal('updateModal');
+  renderAll();
+}
+
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+document.querySelectorAll('.modal-overlay').forEach(m => {
+  m.addEventListener('click', e => { if (e.target === m) m.classList.remove('open'); });
+});
+
+function handleStatusChange(id, status) {
+  APP.updateComplaintStatus(id, status);
+  renderAll();
+}
+
+function handleUpvote() {} // Not used on team dashboard
+
+window.addEventListener('complaintsUpdated', renderAll);
+window.addEventListener('storage', e => { if (e.key === APP.STORAGE_KEY) renderAll(); });
+
+renderAll();
+</script>
+
+<style>
+.tab-btn {
+  padding: 8px 16px;
+  border-radius: var(--radius-sm);
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: var(--font-body);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition);
+  white-space: nowrap;
+}
+.tab-btn:hover { background: var(--bg); color: var(--text-primary); }
+.tab-btn.active { background: var(--primary); color: white; }
+</style>
+</body>
+</html>
